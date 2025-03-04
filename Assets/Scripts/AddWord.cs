@@ -2,18 +2,14 @@ using UnityEngine;
 using TMPro;
 using KwlEventBus;
 using Lofelt.NiceVibrations;
-using DG.Tweening;
 using static ButtonFeeling;
 
-public class AddWord : MonoBehaviour
+public class AddWord : Panel
 {
-
     [SerializeField] private TMP_InputField firstIF;
     [SerializeField] private TMP_InputField secondIF;
-    [SerializeField] private GameObject panel;
     [SerializeField] private Transform addBtnObj;
 
-    private Tween scaleTween;
 
     public void AddNewWord()
     {
@@ -49,21 +45,12 @@ public class AddWord : MonoBehaviour
             secondIF.text = "";
         }
     }
-    public void TogglePanel(bool isActive)
+    public override void TogglePanel(bool isActive)
     {
-        KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.LightImpact);
-
-        scaleTween.Kill(true);
-        if (isActive)
-        {
-            panel.SetActive(true);
-            scaleTween = panel.transform.DOScale(Vector3.one, 0.25f);
-        }
-        else
-        {
-            scaleTween = panel.transform.DOScale(Vector3.zero, 0.25f).OnComplete(() => panel.SetActive(false));
-        }
+        base.TogglePanel(isActive);
     }
 
-   
+
+
+
 }
