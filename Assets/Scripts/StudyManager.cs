@@ -4,8 +4,7 @@ using KwlEventBus;
 using Lofelt.NiceVibrations;
 using System.Collections.Generic;
 using DG.Tweening;
-
-public class DailyStudy : Panel
+public class StudyManager : Panel
 {
     [SerializeField] private TMP_Text firstWordTXT;
     [SerializeField] private TMP_Text secondWordTXT;
@@ -15,22 +14,26 @@ public class DailyStudy : Panel
     private List<string> wordPairs;
     private int currentDataNum;
     private Tween scaleTween;
+    private int nextBtnClickCount;
+    private StudyType currentStudyType;
+
     private void PrepareWords()
     {
+        nextBtnClickCount = 0;
+
         if (wordPairs == null)
             wordPairs = new List<string>();
         wordPairs.Clear();
         currentDataNum = 0;
         string rawData = PlayerPrefs.GetString("Words");
         string[] linedData = rawData.Split("%");
-     
-        foreach (string words in linedData)
+
+        for (int i = 0; i < linedData.Length - 1; i++)
         {
-            wordPairs.Add(words.Trim());
+            wordPairs.Add(linedData[i].Trim());
         }
         if (wordPairs.Count == 0)
         {
-            TogglePanel(false);
             KwlBus<SendWarningEvent>.NotifyListeners(new SendWarningEvent("There is no word to study!", Color.magenta, 1f));
             KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.MediumImpact);
         }
@@ -40,14 +43,20 @@ public class DailyStudy : Panel
         }
     }
     private void ShowData()
-    {       
+    {
         string[] splittedData = wordPairs[currentDataNum].Split("½");
         int currentId = int.Parse(splittedData[2]);
-        if (currentId == -1 || currentId >= 6) //removed data
+        if (IsIdUnapproved(currentId))
         {
             ShowNextData();
             return;
         }
+        else if (nextBtnClickCount == 0) //first time see
+        {
+            base.TogglePanel(true);
+        }
+
+
         for (int i = 0; i < stars.Length; i++)
         {
             stars[i].SetActive(false);
@@ -62,14 +71,38 @@ public class DailyStudy : Panel
             stars[i].SetActive(true);
         }
     }
-    public void ShowNextData()
+    private bool IsIdUnapproved(int id)
+    {
+        if (id == -1) return true; //removed word check
+
+        bool isDailyInvalid = currentStudyType == StudyType.Daily && id >= 6;
+        bool isLibraryInvalid = currentStudyType == StudyType.Library && id < 6;
+
+        return isDailyInvalid || isLibraryInvalid;
+    }
+    public void NextButton()
+    {
+        nextBtnClickCount++;
+
+        ShowNextData();
+    }
+    private void ShowNextData()
     {
         currentDataNum++;
-        if (currentDataNum >= wordPairs.Count-1)
+        if (currentDataNum >= wordPairs.Count)
         {
-            KwlBus<SendWarningEvent>.NotifyListeners(new SendWarningEvent("Done!", Color.green, 1f));
-            KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.Success);
-            TogglePanel(false);
+
+            if (nextBtnClickCount == 0)//first data
+            {
+                KwlBus<SendWarningEvent>.NotifyListeners(new SendWarningEvent("There is no word to study!", Color.magenta, 1f));
+                KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.MediumImpact);
+            }
+            else
+            {
+                KwlBus<SendWarningEvent>.NotifyListeners(new SendWarningEvent("Done!", Color.green, 1f));
+                KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.Success);
+                TogglePanel(false);
+            }
         }
         else
         {
@@ -103,7 +136,7 @@ public class DailyStudy : Panel
             if (i == currentDataNum)
             {
                 string[] splittedData = linedData[i].Split("½");
-                newData += splittedData[0] +"½" + splittedData[1] + "½-1%";
+                newData += splittedData[0] + "½" + splittedData[1] + "½-1%";
 
             }
             else
@@ -117,15 +150,23 @@ public class DailyStudy : Panel
         KwlBus<SendWarningEvent>.NotifyListeners(new SendWarningEvent("Word Pair Deleted!", Color.magenta, 1f));
         KwlVibrationMaster.Instance.TriggerVibration(HapticPatterns.PresetType.MediumImpact);
 
+        nextBtnClickCount++;
         ShowNextData();
         DeleteWordPanel(false);
     }
     public override void TogglePanel(bool isActive)
     {
-        if (isActive)
-        {
-            PrepareWords();
-        }
         base.TogglePanel(isActive);
+    }
+    public void ActivatePanelRequest(int StudyTypeNum)
+    {
+        currentStudyType = (StudyType)StudyTypeNum;
+        PrepareWords();
+
+    }
+    public enum StudyType
+    {
+        Daily,
+        Library
     }
 }
